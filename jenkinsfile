@@ -1,0 +1,62 @@
+pipeline {
+    agent any
+
+    environment {
+        AZURE_CLIENT_ID = 5438d127-7453-4e25-9b67-2ae8722fc041('azure-sp')
+        AZURE_TENANT_ID = a9ac596c-2692-4009-b955-50d774f0a01f('azure-tenant')
+    }
+
+    stages {
+
+        // === Continuous Integration ===
+        stage('Checkout from Git') {
+            steps {
+                git branch: 'main', url: 'https://github.com/furqan28ca/msdocs-nodejs-mongodb-azure-sample-app-bc5.git'
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install'
+            }
+        }
+
+        stage('Package App') {
+            steps {
+                sh 'zip -r app.zip *'
+            }
+        }
+
+        stage('Publish Artifact') {
+            steps {
+                archiveArtifacts artifacts: 'app.zip', onlyIfSuccessful: true
+            }
+        }
+
+        // === Continuous Deployment ===
+        stage('Download Artifact') {
+            steps {
+                copyArtifacts(projectName: 'ci-cd-pipeline', filter: 'app.zip', fingerprintArtifacts: true)
+            }
+        }
+
+        stage('Login to Azure') {
+            steps {
+                sh '''
+                    az login --service-principal -u $AZURE_CLIENT_ID_USR -p $AZURE_CLIENT_ID_PSW --tenant $AZURE_TENANT_ID
+                '''
+            }
+        }
+
+        stage('Deploy to Azure Web App') {
+            steps {
+                sh '''
+                    az webapp deploy --resource-group bootcamp5 \
+                                     --name bootcamp555 \
+                                     --src-path app.zip \
+                                     --type zip
+                '''
+            }
+        }
+    }
+}
